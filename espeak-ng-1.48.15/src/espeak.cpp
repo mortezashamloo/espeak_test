@@ -128,8 +128,7 @@ void strncpy0(char *dest, const char *source, int size)
 	}
 }
 
-#ifndef _WIN32
-int utf8_in(int *c, const char *buf)
+static int utf8_in(int *c, const char *buf)
 {//=================================
 // Read a unicode characater from a UTF8 string
 // Returns the number of UTF8 bytes used.
@@ -159,7 +158,6 @@ int utf8_in(int *c, const char *buf)
 	*c = c1;
 	return(n_bytes+1);
 }
-#endif
 
 
 void DisplayVoices(FILE *f_out, char *language)
