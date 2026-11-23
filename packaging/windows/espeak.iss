@@ -12,6 +12,7 @@ AppVersion=1.48.15
 AppPublisher=eSpeak
 DefaultDirName={autopf}\eSpeak
 DefaultGroupName=eSpeak
+ArchitecturesAllowed=x64
 OutputDir={#OutputDir}
 OutputBaseFilename=eSpeak-1.48.15-Setup
 LicenseFile={#SourceDir}\COPYING
@@ -26,3 +27,6 @@ Source: "{#SourceDir}\espeak-data\*"; DestDir: "{app}\espeak-data"; Flags: recur
 
 [Icons]
 Name: "{group}\eSpeak Command Prompt"; Filename: "{cmd}"; Parameters: "/K """"{app}\espeak.exe"" --help"""
+
+[Registry]
+Root: HKLM64; Subkey: "Software\Microsoft\Speech\Voices\Tokens\eSpeak"; ValueType: string; ValueName: "Path"; ValueData: "{app}"; Flags: uninsdeletevalue
