@@ -105,7 +105,7 @@ char filetype[5];
 char wavefile[200];
 
 
-int GetFileLength(const char *filename)
+static int GetFileLength(const char *filename)
 {//====================================
 	struct stat statbuf;
 
