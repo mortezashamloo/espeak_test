@@ -33,8 +33,11 @@ EXTRA_DIST += ChangeLog
 all-local: \
 	espeak-data/phontab \
 	docs/speak_lib.h \
-	dictionaries \
-	mbrola
+	dictionaries
+
+if OPT_MBROLA
+all-local: mbrola
+endif
 
 uninstall-hook:
 	rm -rf $(DESTDIR)$(DATADIR)

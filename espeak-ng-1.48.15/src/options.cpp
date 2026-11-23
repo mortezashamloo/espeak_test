@@ -156,6 +156,7 @@ void ConfigInit(bool use_defaults)
 		}
 		sprintf(path_home,"%s\\espeak-data",path_base);
 	}
+	path_base = path_home;
 #else
         char *env;
 	if((env = getenv("ESPEAK_DATA_PATH")) == NULL)
