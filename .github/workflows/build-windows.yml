@@ -33,7 +33,7 @@ jobs:
         working-directory: espeak-ng-1.48.15
         run: |
           ./autogen.sh
-          ./configure --prefix=/usr --with-pulseaudio=no --with-portaudio=no --with-sada=no --disable-shared --enable-static LDFLAGS="-static -static-libgcc -static-libstdc++"
+          ./configure --prefix=/usr --with-pulseaudio=no --with-portaudio=no --with-sada=no --with-mbrola=no --disable-shared --enable-static LDFLAGS="-static -static-libgcc -static-libstdc++"
           make -j"$(nproc)"
 
       - name: Install Inno Setup
