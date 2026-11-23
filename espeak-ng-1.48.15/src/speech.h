@@ -33,7 +33,13 @@
 #endif
 
 
+#ifndef PLATFORM_WINDOWS
+#ifdef _WIN32
+#define PLATFORM_WINDOWS
+#else
 #define PLATFORM_POSIX
+#endif
+#endif
 #define PATHSEP  '/'
 // USE_PORTAUDIO or USE_PULSEAUDIO are now defined in the makefile
 //#define USE_PORTAUDIO

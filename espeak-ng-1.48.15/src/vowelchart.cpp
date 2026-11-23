@@ -27,6 +27,10 @@
 #include <wx/dirdlg.h>
 #include "wx/filename.h"
 #include "wx/wfstream.h"
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 #include "speak_lib.h"
 #include "main.h"
@@ -591,7 +595,11 @@ void MakeVowelLists(void)
 	progress = new wxProgressDialog(_T("Vowel charts"),_T(""),n_phoneme_tables);
 
 	sprintf(dirname,"%s%s",path_source,"vowelcharts");
+#ifdef _WIN32
+	_mkdir(dirname);
+#else
 	mkdir(dirname,S_IRWXU | S_IRGRP | S_IROTH);
+#endif
 
 	sprintf(fname,"%s/vowel_log",dirname);
 

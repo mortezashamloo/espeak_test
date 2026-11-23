@@ -23,6 +23,9 @@
 #include "wx/fileconf.h"
 #include "wx/filename.h"
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include "speech.h"
 
 #ifdef PLATFORM_WINDOWS
@@ -160,7 +163,11 @@ void ConfigInit(bool use_defaults)
 	snprintf(path_home,sizeof(path_home),"%s/espeak-data",env);
 	path_base = path_home;
 #endif
+#ifdef _WIN32
+	_mkdir(path_home);
+#else
 	mkdir(path_home,S_IRWXU);    // create if it doesn't already exist
+#endif
 
 	wxFileConfig *pConfig = new wxFileConfig(_T("espeakedit"));
 	wxFileConfig::Set(pConfig);
