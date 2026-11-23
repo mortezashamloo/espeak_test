@@ -93,7 +93,7 @@ static const char *help_text =
 
 
 
-int samplerate;
+static int samplerate;
 int quiet = 0;
 unsigned int samples_total = 0;
 unsigned int samples_split = 0;
