@@ -128,6 +128,7 @@ void strncpy0(char *dest, const char *source, int size)
 	}
 }
 
+#ifndef PLATFORM_WINDOWS
 int utf8_in(int *c, const char *buf)
 {//=================================
 // Read a unicode characater from a UTF8 string
@@ -158,6 +159,7 @@ int utf8_in(int *c, const char *buf)
 	*c = c1;
 	return(n_bytes+1);
 }
+#endif
 
 
 void DisplayVoices(FILE *f_out, char *language)

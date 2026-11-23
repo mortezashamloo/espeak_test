@@ -421,7 +421,7 @@ void FindPhonemesUsed(void)
 			if(p[1] == RULE_REPLACEMENTS)
 			{
 				p++;
-				pw = (unsigned int *)(((long)p+4) & ~3);  // advance to next word boundary
+				pw = (unsigned int *)(((long64)p+4) & ~3);  // advance to next word boundary
 				while(pw[0] != 0)
 				{
 					pw += 2;   // find the end of the replacement list, each entry is 2 words.
