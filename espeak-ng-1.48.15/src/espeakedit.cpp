@@ -116,16 +116,12 @@ static const char *help_text =
 bool MyApp::OnInit(void)
 {//=====================
 
-int j;
-const wxChar *p;
 char param[120];
 
 
 if(argc > 1)
 {
-	p = argv[1];
-	j = 0;
-	while((param[j] = p[j]) != 0) j++;
+	strncpy0(param, argv[1].mb_str(wxConvLocal), sizeof(param));
 
 	if((strcmp(param,"--help")==0) || (strcmp(param,"-h")==0))
 	{
@@ -157,7 +153,7 @@ if(argc > 1)
 			fprintf(stderr, "Failed to load default voice\n");
 			exit(1);
 		}
-		CompileMbrola(argv[2]);
+		CompileMbrola(argv[2].wc_str());
 	}
     exit(0);
 }

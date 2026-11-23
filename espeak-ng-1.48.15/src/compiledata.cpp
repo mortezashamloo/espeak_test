@@ -3438,7 +3438,7 @@ static void CompileEquivalents()
 	}
 	*p_equivalence++ = 0;
 
-	p_equivalence = (char *)((long int)(p_equivalence + 3) & ~0x3);  // align to word boundary
+	p_equivalence = (char *)((long64)(p_equivalence + 3) & ~0x3);  // align to word boundary
 	n_bytes = p_equivalence - p_start;
 	p_start[1] = remove_stress;
 	n_bytes = n_bytes / 4;

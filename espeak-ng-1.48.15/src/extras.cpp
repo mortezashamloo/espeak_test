@@ -129,7 +129,7 @@ int TestSynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 
 	while((type = events->type) != 0)
 	{
-		fprintf(f_events,"%2d (%4d %4ld)   %5d %5d  (%3d) ",type,events->unique_identifier,(long)events->user_data,events->audio_position,events->text_position,events->length);
+		fprintf(f_events,"%2d (%4d %p)   %5d %5d  (%3d) ",type,events->unique_identifier,events->user_data,events->audio_position,events->text_position,events->length);
 
 		if((type==3) || (type==4))
 			fprintf(f_events,"'%s'\n",events->id.name);
@@ -336,16 +336,16 @@ void Lexicon_It(int pass)
 	static const char *vowels1 = "aeiou";
 	static const char *vowels2 = "aeou";
 
-	static const char ex1[] = {'a',0xc3,0xac,0};  // aì
-	static const char ex2[] = {'e',0xc3,0xac,0};  // eì
-	static const char ex3[] = {0xc3,0xb9,'a',0};  // ùa
-	static const char ex4[] = {0xc3,0xb9,'e',0};  // ùe
-	static const char ex5[] = {0xc3,0xb9,'i',0};  // ùi
-	static const char ex6[] = {0xc3,0xb9,'o',0};  // ùo
-	static const char ex7[] = {'c',0xc3,0xac,'a',0};  // cìa
-	static const char ex8[] = {'c',0xc3,0xac,'o',0};  // cìo
-	static const char ex9[] = {'c',0xc3,0xac,'u',0};  // cìu
-	static const char ex10[] = {'g','l',0xc3,0xac,0};  // glì
+	static const char ex1[] = {'a',static_cast<char>(0xc3),static_cast<char>(0xac),0};  // aì
+	static const char ex2[] = {'e',static_cast<char>(0xc3),static_cast<char>(0xac),0};  // eì
+	static const char ex3[] = {static_cast<char>(0xc3),static_cast<char>(0xb9),'a',0};  // ùa
+	static const char ex4[] = {static_cast<char>(0xc3),static_cast<char>(0xb9),'e',0};  // ùe
+	static const char ex5[] = {static_cast<char>(0xc3),static_cast<char>(0xb9),'i',0};  // ùi
+	static const char ex6[] = {static_cast<char>(0xc3),static_cast<char>(0xb9),'o',0};  // ùo
+	static const char ex7[] = {'c',static_cast<char>(0xc3),static_cast<char>(0xac),'a',0};  // cìa
+	static const char ex8[] = {'c',static_cast<char>(0xc3),static_cast<char>(0xac),'o',0};  // cìo
+	static const char ex9[] = {'c',static_cast<char>(0xc3),static_cast<char>(0xac),'u',0};  // cìu
+	static const char ex10[] = {'g','l',static_cast<char>(0xc3),static_cast<char>(0xac),0};  // glì
 
 
 	static const char *exceptions[] = {ex1, ex2, ex3, ex4, ex5, ex6, ex7, ex8, ex9, ex10, NULL};
