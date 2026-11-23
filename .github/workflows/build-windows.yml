@@ -21,6 +21,10 @@ jobs:
           update: true
           install: >-
             base-devel
+            autoconf
+            automake
+            libtool
+            pkgconf
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-wxwidgets3.2-msw
 
