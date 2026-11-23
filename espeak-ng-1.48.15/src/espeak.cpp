@@ -128,7 +128,7 @@ void strncpy0(char *dest, const char *source, int size)
 	}
 }
 
-#ifndef PLATFORM_WINDOWS
+#ifndef _WIN32
 int utf8_in(int *c, const char *buf)
 {//=================================
 // Read a unicode characater from a UTF8 string
