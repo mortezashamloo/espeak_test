@@ -119,7 +119,7 @@ int GetFileLength(const char *filename)
 }  // end of GetFileLength
 
 
-void strncpy0(char *dest, const char *source, int size)
+static void strncpy0(char *dest, const char *source, int size)
 {//====================================================
 	if(source!=NULL)
 	{
