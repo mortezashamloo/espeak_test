@@ -25,7 +25,7 @@ WizardStyle=modern
 
 [Files]
 Source: "{#SourceDir}\espeak.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SapiDll}"; DestDir: "{app}"; DestName: "espeak_sapi.dll"; Flags: ignoreversion regserver unregserver
+Source: "{#SapiDll}"; DestDir: "{app}"; DestName: "espeak_sapi.dll"; Flags: ignoreversion regserver
 Source: "{#SourceDir}\espeak-voices.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\espeak-data\*"; DestDir: "{app}\espeak-data"; Flags: recursesubdirs createallsubdirs ignoreversion
 
