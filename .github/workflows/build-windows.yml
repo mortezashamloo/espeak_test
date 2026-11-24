@@ -66,13 +66,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload compiled eSpeak data for x86 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: eSpeak-Compiled-Data
+          path: espeak-ng-1.48.15/espeak-data/**
+          if-no-files-found: error
+          retention-days: 1
+
   build-x86-sapi:
+    needs: build
     runs-on: windows-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up MINGW32 and wxWidgets
+      - name: Download compiled eSpeak data
+        uses: actions/download-artifact@v4
+        with:
+          name: eSpeak-Compiled-Data
+          path: espeak-ng-1.48.15/espeak-data
+
+      - name: Set up MINGW32 toolchain
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW32
@@ -84,16 +99,15 @@ jobs:
             libtool
             pkgconf
             mingw-w64-i686-toolchain
-            mingw-w64-i686-wxwidgets3.2-msw
 
-      - name: Build 32-bit eSpeak and language data
+      - name: Build 32-bit eSpeak runtime
         shell: msys2 {0}
         working-directory: espeak-ng-1.48.15
         run: |
           ./autogen.sh
-          ./configure --prefix=/usr --with-pulseaudio=no --with-portaudio=no --with-sada=no --with-mbrola=no --with-async=no --disable-shared --enable-static LDFLAGS="-static -static-libgcc -static-libstdc++"
-          make -j"$(nproc)" src/espeak.exe espeak-data/phontab docs/speak_lib.h
-          make dictionaries
+          ./configure --prefix=/usr --with-wx-config=/usr/bin/true --with-pulseaudio=no --with-portaudio=no --with-sada=no --with-mbrola=no --with-async=no --disable-shared --enable-static LDFLAGS="-static -static-libgcc -static-libstdc++"
+          test -s espeak-data/phontab
+          make -j"$(nproc)" src/espeak.exe docs/speak_lib.h
           ESPEAK_DATA_PATH=$PWD src/espeak.exe -w /tmp/espeak-x86-smoke.wav "eSpeak x86 test"
           test -s /tmp/espeak-x86-smoke.wav
           gcc -O2 -static -o espeak-voices.exe tools/sapi/espeak-voices.c -ladvapi32
