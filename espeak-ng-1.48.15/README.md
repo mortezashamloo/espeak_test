@@ -97,8 +97,9 @@ artifacts after a successful run.
 
 The separate `../.github/workflows/build-latest-espeak-ng-sapi5.yml` workflow
 resolves the latest stable release of `espeak-ng/espeak-ng` at run time, builds
-its x86 Windows engine and voice data with SAPI5 support, and publishes one
-versioned Setup.exe artifact. It runs weekly and can also be started manually.
+its x86 and x64 Windows engines and voice data with SAPI5 support, and publishes
+a separate versioned Setup.exe artifact for each architecture. It runs weekly
+and can also be started manually.
 
 ### Audio Output Configuration
 

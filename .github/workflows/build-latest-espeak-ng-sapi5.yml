@@ -2,6 +2,9 @@ name: Build latest eSpeak NG SAPI5 installer
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - mortezashamloo-latest-espeak-ng-sapi5
   schedule:
     - cron: "0 6 * * 1"
 
@@ -9,12 +12,12 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: windows-latest
+  latest:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.upstream.outputs.tag }}
+      version: ${{ steps.upstream.outputs.version }}
     steps:
-      - name: Check out installer adaptations
-        uses: actions/checkout@v4
-
       - name: Resolve latest stable eSpeak NG release
         id: upstream
         uses: actions/github-script@v7
@@ -31,17 +34,37 @@ jobs:
             core.setOutput("tag", tag);
             core.setOutput("version", tag.replace(/^v/, ""));
 
+  build:
+    needs: latest
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x86
+            platform: Win32
+            msystem: MINGW32
+            gcc_package: mingw-w64-i686-gcc
+          - architecture: x64
+            platform: x64
+            msystem: MINGW64
+            gcc_package: mingw-w64-x86_64-gcc
+    steps:
+      - name: Check out installer adaptations
+        uses: actions/checkout@v4
+
       - name: Check out latest upstream source
         uses: actions/checkout@v4
         with:
           repository: espeak-ng/espeak-ng
-          ref: ${{ steps.upstream.outputs.tag }}
+          ref: ${{ needs.latest.outputs.tag }}
           path: upstream
 
       - name: Check out pcaudiolib dependency
         uses: actions/checkout@v4
         with:
           repository: espeak-ng/pcaudiolib
+          ref: 1.3
           path: upstream/src/pcaudiolib
 
       - name: Set up MSBuild
@@ -60,24 +83,37 @@ jobs:
           $source = [regex]::Replace($source, $pattern, '${1}S_OK;')
           Set-Content -Path $engine -Value $source -NoNewline -Encoding utf8
 
-      - name: Build latest upstream x86 engine and voice data
+      - name: Patch pcaudiolib x86 callback calling conventions
         shell: pwsh
         run: |
-          msbuild upstream\src\windows\espeak-ng.vcxproj /m /p:Configuration=Release /p:Platform=Win32
-          if ($LASTEXITCODE -ne 0) {
-            throw "The upstream eSpeak NG x86 build failed with exit code $LASTEXITCODE"
+          $sourcePath = "upstream\src\pcaudiolib\src\xaudio2.cpp"
+          $source = Get-Content $sourcePath -Raw
+          $pattern = '\bvoid (On(?:BufferEnd|StreamEnd|VoiceProcessingPassEnd|VoiceProcessingPassStart|BufferStart|LoopEnd|VoiceError))\('
+          $matches = [regex]::Matches($source, $pattern)
+          if ($matches.Count -ne 7) {
+            throw "Expected seven XAudio2 callbacks, found $($matches.Count)"
           }
-          msbuild upstream\src\windows\data.vcxproj /m /p:Configuration=Release /p:Platform=Win32
+          $source = [regex]::Replace($source, $pattern, 'void STDMETHODCALLTYPE $1(')
+          Set-Content -Path $sourcePath -Value $source -NoNewline -Encoding utf8
+
+      - name: Build latest upstream engine and voice data
+        shell: pwsh
+        run: |
+          msbuild upstream\src\windows\espeak-ng.vcxproj /m /p:Configuration=Release /p:Platform=${{ matrix.platform }}
           if ($LASTEXITCODE -ne 0) {
-            throw "The upstream eSpeak NG x86 voice-data build failed with exit code $LASTEXITCODE"
+            throw "The upstream eSpeak NG ${{ matrix.architecture }} build failed with exit code $LASTEXITCODE"
+          }
+          msbuild upstream\src\windows\data.vcxproj /m /p:Configuration=Release /p:Platform=${{ matrix.platform }}
+          if ($LASTEXITCODE -ne 0) {
+            throw "The upstream eSpeak NG ${{ matrix.architecture }} voice-data build failed with exit code $LASTEXITCODE"
           }
 
-      - name: Set up x86 voice-registration compiler
+      - name: Set up voice-registration compiler
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW32
+          msystem: ${{ matrix.msystem }}
           update: true
-          install: mingw-w64-i686-gcc
+          install: ${{ matrix.gcc_package }}
 
       - name: Build SAPI voice-registration helper
         shell: msys2 {0}
@@ -88,6 +124,8 @@ jobs:
 
       - name: Stage and smoke-test upstream build
         shell: pwsh
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "espeak-ng-sapi-stage"
           $dist = Join-Path $env:GITHUB_WORKSPACE "dist"
@@ -103,10 +141,10 @@ jobs:
           Copy-Item -Path @($exe.FullName, $dll.FullName, "upstream\COPYING", "dist\espeak-voices.exe") -Destination $stage
           Copy-Item $data (Join-Path $stage "espeak-ng-data") -Recurse
           $env:ESPEAK_DATA_PATH = $stage
-          $wave = Join-Path $env:RUNNER_TEMP "espeak-ng-x86-smoke.wav"
+          $wave = Join-Path $env:RUNNER_TEMP "espeak-ng-$env:ARCHITECTURE-smoke.wav"
           & (Join-Path $stage "espeak-ng.exe") -w $wave "Latest upstream eSpeak NG test"
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $wave) -or (Get-Item $wave).Length -lt 1000) {
-            throw "The upstream x86 command-line smoke test failed"
+            throw "The upstream $env:ARCHITECTURE command-line smoke test failed"
           }
 
       - name: Install Inno Setup
@@ -116,38 +154,43 @@ jobs:
       - name: Package SAPI5 installer
         shell: pwsh
         env:
-          PRODUCT_VERSION: ${{ steps.upstream.outputs.version }}
+          PRODUCT_VERSION: ${{ needs.latest.outputs.version }}
+          ARCHITECTURE: ${{ matrix.architecture }}
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "espeak-ng-sapi-stage"
           $output = Join-Path $env:GITHUB_WORKSPACE "dist"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DSourceDir=$stage" "/DOutputDir=$output" "/DProductVersion=$env:PRODUCT_VERSION" "packaging\windows\espeak-ng-x86-sapi.iss"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DSourceDir=$stage" "/DOutputDir=$output" "/DProductVersion=$env:PRODUCT_VERSION" "/DArchitecture=`"$env:ARCHITECTURE`"" "packaging\windows\espeak-ng-sapi.iss"
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup failed with exit code $LASTEXITCODE"
           }
-          $installer = Join-Path $output "eSpeak-NG-$env:PRODUCT_VERSION-x86-SAPI5-Setup.exe"
+          $installer = Join-Path $output "eSpeak-NG-$env:PRODUCT_VERSION-$env:ARCHITECTURE-SAPI5-Setup.exe"
           if (-not (Test-Path $installer)) {
             throw "The SAPI5 installer was not created: $installer"
           }
 
       - name: Verify installed SAPI5 engine and speech synthesis
         shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ needs.latest.outputs.version }}
+          ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          $version = "${{ steps.upstream.outputs.version }}"
-          $installer = Join-Path $env:GITHUB_WORKSPACE "dist\eSpeak-NG-$version-x86-SAPI5-Setup.exe"
+          $installer = Join-Path $env:GITHUB_WORKSPACE "dist\eSpeak-NG-$env:PRODUCT_VERSION-$env:ARCHITECTURE-SAPI5-Setup.exe"
           $install = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
           if ($install.ExitCode -ne 0) {
             throw "Silent installer verification failed with exit code $($install.ExitCode)"
           }
-          $view = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry32)
+          $registryView = if ($env:ARCHITECTURE -eq "x64") { [Microsoft.Win32.RegistryView]::Registry64 } else { [Microsoft.Win32.RegistryView]::Registry32 }
+          $view = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $registryView)
           try {
             $clsid = $view.OpenSubKey("Software\Classes\CLSID\{61D23633-CE59-4101-8158-569FC6B51B49}\InprocServer32")
             $token = $view.OpenSubKey("Software\Microsoft\Speech\Voices\Tokens\eSpeak")
             if (-not $clsid -or -not $token) {
-              throw "The installer did not register the x86 SAPI COM class and voice token"
+              throw "The installer did not register the $env:ARCHITECTURE SAPI COM class and voice token"
             }
-            $expectedDll = Join-Path ${env:ProgramFiles(x86)} "eSpeak NG\libespeak-ng.dll"
+            $programFiles = if ($env:ARCHITECTURE -eq "x64") { $env:ProgramW6432 } else { ${env:ProgramFiles(x86)} }
+            $expectedDll = Join-Path $programFiles "eSpeak NG\libespeak-ng.dll"
             if ($clsid.GetValue("") -ne $expectedDll -or $token.GetValue("CLSID") -ne "{61D23633-CE59-4101-8158-569FC6B51B49}") {
-              throw "The x86 SAPI registration points to the wrong engine"
+              throw "The $env:ARCHITECTURE SAPI registration points to the wrong engine"
             }
           } finally {
             if ($clsid) { $clsid.Dispose() }
@@ -174,16 +217,17 @@ jobs:
             '}'
           )
           Set-Content -Path $verifyScript -Value $verifyContent -Encoding utf8
-          $x86PowerShell = Join-Path $env:WINDIR "SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
-          & $x86PowerShell -NoProfile -ExecutionPolicy Bypass -File $verifyScript
+          $powerShellDirectory = if ($env:ARCHITECTURE -eq "x64") { "System32" } else { "SysWOW64" }
+          $nativePowerShell = Join-Path $env:WINDIR "$powerShellDirectory\WindowsPowerShell\v1.0\powershell.exe"
+          & $nativePowerShell -NoProfile -ExecutionPolicy Bypass -File $verifyScript
           if ($LASTEXITCODE -ne 0) {
-            throw "The x86 SAPI speech synthesis verification failed with exit code $LASTEXITCODE"
+            throw "The $env:ARCHITECTURE SAPI speech synthesis verification failed with exit code $LASTEXITCODE"
           }
 
-      - name: Upload latest upstream x86 SAPI5 installer
+      - name: Upload latest upstream SAPI5 installer
         uses: actions/upload-artifact@v4
         with:
-          name: eSpeak-NG-${{ steps.upstream.outputs.version }}-Windows-x86-SAPI5-Installer
-          path: dist/eSpeak-NG-${{ steps.upstream.outputs.version }}-x86-SAPI5-Setup.exe
+          name: eSpeak-NG-${{ needs.latest.outputs.version }}-Windows-${{ matrix.architecture }}-SAPI5-Installer
+          path: dist/eSpeak-NG-${{ needs.latest.outputs.version }}-${{ matrix.architecture }}-SAPI5-Setup.exe
           if-no-files-found: error
           retention-days: 14

@@ -7,19 +7,34 @@
 #ifndef ProductVersion
   #error ProductVersion must be defined
 #endif
+#ifndef Architecture
+  #error Architecture must be x86 or x64
+#endif
 
 #define SapiClsid "{61D23633-CE59-4101-8158-569FC6B51B49}"
 
 [Setup]
+#if Architecture == "x64"
+AppId={{B05584D8-71E7-46E0-B514-0580241C50E7}
+AppName=eSpeak NG {#ProductVersion} (64-bit)
+DefaultGroupName=eSpeak NG 64-bit
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
+#define SapiInstallCommand "install64"
+#define SapiUninstallCommand "remove64"
+#else
 AppId={{A4D6606A-8A23-4D26-9D91-7A9117C11919}
 AppName=eSpeak NG {#ProductVersion} (32-bit)
+DefaultGroupName=eSpeak NG 32-bit
+ArchitecturesAllowed=x86 x64
+#define SapiInstallCommand "install"
+#define SapiUninstallCommand "remove x86"
+#endif
 AppVersion={#ProductVersion}
 AppPublisher=eSpeak NG
 DefaultDirName={autopf}\eSpeak NG
-DefaultGroupName=eSpeak NG 32-bit
-ArchitecturesAllowed=x86 x64
 OutputDir={#OutputDir}
-OutputBaseFilename=eSpeak-NG-{#ProductVersion}-x86-SAPI5-Setup
+OutputBaseFilename=eSpeak-NG-{#ProductVersion}-{#Architecture}-SAPI5-Setup
 LicenseFile={#SourceDir}\COPYING
 Compression=lzma
 SolidCompression=yes
@@ -41,7 +56,7 @@ Root: HKLM; Subkey: "Software\Classes\CLSID\{#SapiClsid}\InprocServer32"; ValueT
 Name: "{group}\eSpeak NG Command Prompt"; Filename: "{cmd}"; Parameters: "/K """"{app}\espeak-ng.exe"" --help"""
 
 [Run]
-Filename: "{app}\espeak-voices.exe"; Parameters: "install ""en en-us fa fa-en-us"" ""{app}"""; Flags: runhidden waituntilterminated
+Filename: "{app}\espeak-voices.exe"; Parameters: "{#SapiInstallCommand} ""en en-us fa fa-en-us"" ""{app}"""; Flags: runhidden waituntilterminated
 
 [UninstallRun]
-Filename: "{app}\espeak-voices.exe"; Parameters: "remove x86"; Flags: runhidden waituntilterminated
+Filename: "{app}\espeak-voices.exe"; Parameters: "{#SapiUninstallCommand}"; Flags: runhidden waituntilterminated

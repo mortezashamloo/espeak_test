@@ -5,7 +5,9 @@
    PhoneConverter handling.  It can write both the 32-bit and the 64-bit registry view.
 
    espeak-voices install "<voice list>" "<install dir>" [x64]
+   espeak-voices install64 "<voice list>" "<install dir>"
    espeak-voices remove [x64]
+   espeak-voices remove64
    espeak-voices lcid <voice>            (prints the Windows language code, for testing)
 */
 #include <windows.h>
@@ -199,7 +201,7 @@ static int is_win64(void)
 #endif
 }
 
-static void do_install(const char *list, const char *appdir, int want64)
+static void do_install(const char *list, const char *appdir, int want64, int only64)
 {
     REGSAM views[2]; int nviews = 0, v;
     char dir[MAX_PATH]; size_t dl;
@@ -208,9 +210,9 @@ static void do_install(const char *list, const char *appdir, int want64)
     while (dl > 3 && (dir[dl - 1] == '\\' || dir[dl - 1] == '/')) dir[--dl] = 0;
 
     if (is_win64()) {
-        views[nviews++] = KEY_WOW64_32KEY;
+        if (!only64) views[nviews++] = KEY_WOW64_32KEY;
         if (want64) views[nviews++] = KEY_WOW64_64KEY;
-    } else views[nviews++] = 0;
+    } else if (!only64) views[nviews++] = 0;
 
     for (v = 0; v < nviews; v++) {
         char *copy = _strdup(list), *tok, *ctx = NULL;
@@ -231,14 +233,13 @@ static void do_install(const char *list, const char *appdir, int want64)
     }
 }
 
-static void do_remove(int remove64)
+static void do_remove(int remove64, int only64)
 {
     REGSAM views[2]; int nviews = 0, v;
     if (is_win64()) {
-        views[nviews++] = KEY_WOW64_32KEY;
+        if (!only64) views[nviews++] = KEY_WOW64_32KEY;
         if (remove64) views[nviews++] = KEY_WOW64_64KEY;
-    }
-    else views[nviews++] = 0;
+    } else if (!only64) views[nviews++] = 0;
     for (v = 0; v < nviews; v++) {
         g_view = views[v];
         clear_registry();
@@ -249,15 +250,23 @@ static void do_remove(int remove64)
 
 int main(int argc, char **argv)
 {
+    if (argc >= 4 && !_stricmp(argv[1], "install64")) {
+        do_install(argv[2], argv[3], 1, 1);
+        return 0;
+    }
     if (argc >= 4 && !_stricmp(argv[1], "install")) {
-        do_install(argv[2], argv[3], argc >= 5 && !_stricmp(argv[4], "x64"));
+        do_install(argv[2], argv[3], argc >= 5 && !_stricmp(argv[4], "x64"), 0);
+        return 0;
+    }
+    if (argc >= 2 && !_stricmp(argv[1], "remove64")) {
+        do_remove(1, 1);
         return 0;
     }
     if (argc >= 2 && !_stricmp(argv[1], "remove")) {
-        do_remove(argc >= 3 && !_stricmp(argv[2], "x64"));
+        do_remove(argc >= 3 && !_stricmp(argv[2], "x64"), 0);
         return 0;
     }
     if (argc >= 3 && !_stricmp(argv[1], "lcid")) { printf("%s\n", language_from_voice(argv[2])); return 0; }
-    fprintf(stderr, "usage: espeak-voices install \"<voices>\" \"<install dir>\" [x64] | remove | lcid <voice>\n");
+    fprintf(stderr, "usage: espeak-voices install \"<voice list>\" \"<install dir>\" [x64] | install64 \"<voice list>\" \"<install dir>\" | remove [x64] | remove64 | lcid <voice>\n");
     return 1;
 }
