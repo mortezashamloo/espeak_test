@@ -2,6 +2,9 @@ name: Build latest eSpeak NG SAPI5 installer
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - mortezashamloo-latest-espeak-ng-sapi5
   schedule:
     - cron: "0 6 * * 1"
 

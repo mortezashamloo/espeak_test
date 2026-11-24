@@ -20,6 +20,7 @@ AppName=eSpeak NG {#ProductVersion} (64-bit)
 DefaultGroupName=eSpeak NG 64-bit
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
+#define ArchitectureName "x64"
 #define SapiInstallCommand "install64"
 #define SapiUninstallCommand "remove64"
 #else
@@ -27,6 +28,7 @@ AppId={{A4D6606A-8A23-4D26-9D91-7A9117C11919}
 AppName=eSpeak NG {#ProductVersion} (32-bit)
 DefaultGroupName=eSpeak NG 32-bit
 ArchitecturesAllowed=x86 x64
+#define ArchitectureName "x86"
 #define SapiInstallCommand "install"
 #define SapiUninstallCommand "remove x86"
 #endif
@@ -34,7 +36,7 @@ AppVersion={#ProductVersion}
 AppPublisher=eSpeak NG
 DefaultDirName={autopf}\eSpeak NG
 OutputDir={#OutputDir}
-OutputBaseFilename=eSpeak-NG-{#ProductVersion}-{#Architecture}-SAPI5-Setup
+OutputBaseFilename=eSpeak-NG-{#ProductVersion}-{#ArchitectureName}-SAPI5-Setup
 LicenseFile={#SourceDir}\COPYING
 Compression=lzma
 SolidCompression=yes
