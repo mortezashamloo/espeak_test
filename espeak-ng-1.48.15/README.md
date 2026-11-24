@@ -8,6 +8,7 @@
   - [Audio Output Configuration](#audio-output-configuration)
   - [eSpeak Feature Configuration](#espeak-feature-configuration)
   - [Extended Dictionary Configuration](#extended-dictionary-configuration)
+  - [Windows Installers](#windows-installers)
 - [Testing](#testing)
 - [Installing](#installing)
 - [Building Voices](#building-voices)
@@ -86,6 +87,13 @@ be built via the standard autotools commands:
 __NOTE:__ The configure command detects various platform differences that
 the espeak makefiles don't cater for (e.g. different wxWidgets version)
 and detect the available audio setup to use automatically.
+
+### Windows Installers
+
+The GitHub Actions workflow in `.github/workflows/build-windows.yml` builds two
+separate Windows installers: the existing x64 command-line installer and an
+x86 installer that includes the SAPI5 engine. Both are published as workflow
+artifacts after a successful run.
 
 ### Audio Output Configuration
 

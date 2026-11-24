@@ -65,3 +65,79 @@ jobs:
           path: dist/eSpeak-1.48.15-Setup.exe
           if-no-files-found: error
           retention-days: 14
+
+  build-x86-sapi:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up MINGW32 and wxWidgets
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          update: true
+          install: >-
+            base-devel
+            autoconf
+            automake
+            libtool
+            pkgconf
+            mingw-w64-i686-toolchain
+            mingw-w64-i686-wxwidgets3.2-msw
+
+      - name: Build 32-bit eSpeak and language data
+        shell: msys2 {0}
+        working-directory: espeak-ng-1.48.15
+        run: |
+          ./autogen.sh
+          ./configure --prefix=/usr --with-pulseaudio=no --with-portaudio=no --with-sada=no --with-mbrola=no --with-async=no --disable-shared --enable-static LDFLAGS="-static -static-libgcc -static-libstdc++"
+          make -j"$(nproc)" src/espeak.exe espeak-data/phontab docs/speak_lib.h
+          make dictionaries
+          ESPEAK_DATA_PATH=$PWD src/espeak.exe -w /tmp/espeak-x86-smoke.wav "eSpeak x86 test"
+          test -s /tmp/espeak-x86-smoke.wav
+          gcc -O2 -static -o espeak-voices.exe tools/sapi/espeak-voices.c -ladvapi32
+          test "$(./espeak-voices.exe lcid fa)" = "429"
+
+      - name: Build 32-bit SAPI5 engine
+        shell: pwsh
+        run: |
+          python espeak-ng-1.48.15\tools\sapi\build_sapi.py --arch x86
+          if ($LASTEXITCODE -ne 0) {
+            throw "The x86 SAPI5 build failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
+      - name: Package 32-bit SAPI5 installer
+        shell: pwsh
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "espeak-ng-1.48.15"
+          $stage = Join-Path $env:RUNNER_TEMP "espeak-x86-stage"
+          $output = Join-Path $env:GITHUB_WORKSPACE "dist"
+          New-Item -ItemType Directory -Force -Path $stage, $output | Out-Null
+          Copy-Item (Join-Path $source "src\espeak.exe") $stage
+          Copy-Item (Join-Path $source "espeak-data") (Join-Path $stage "espeak-data") -Recurse
+          Copy-Item (Join-Path $source "COPYING") $stage
+          Copy-Item (Join-Path $source "espeak-voices.exe") $stage
+          $sapi = Join-Path $source "build-out\sapi\espeak_sapi-x86.dll"
+          if (-not (Test-Path $sapi)) {
+            throw "The x86 SAPI5 DLL was not created"
+          }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DSourceDir=$stage" "/DOutputDir=$output" "/DSapiDll=$sapi" "packaging\windows\espeak-x86.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup failed with exit code $LASTEXITCODE"
+          }
+          if (-not (Test-Path (Join-Path $output "eSpeak-1.48.15-x86-SAPI-Setup.exe"))) {
+            throw "The x86 SAPI5 installer was not created"
+          }
+
+      - name: Upload 32-bit SAPI5 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: eSpeak-Windows-x86-SAPI5-Installer
+          path: dist/eSpeak-1.48.15-x86-SAPI-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
