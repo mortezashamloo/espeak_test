@@ -11,8 +11,6 @@
   #error Architecture must be x86 or x64
 #endif
 
-#define SapiClsid "{61D23633-CE59-4101-8158-569FC6B51B49}"
-
 [Setup]
 #if Architecture == "x64"
 AppId={{B05584D8-71E7-46E0-B514-0580241C50E7}
@@ -50,9 +48,9 @@ Source: "{#SourceDir}\espeak-ng-data\*"; DestDir: "{app}\espeak-ng-data"; Flags:
 
 [Registry]
 Root: HKLM; Subkey: "Software\eSpeak NG"; ValueType: string; ValueName: "Path"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\CLSID\{#SapiClsid}"; ValueType: string; ValueName: ""; ValueData: "eSpeak NG TTS Engine"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\CLSID\{#SapiClsid}\InprocServer32"; ValueType: string; ValueName: ""; ValueData: "{app}\libespeak-ng.dll"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\CLSID\{#SapiClsid}\InprocServer32"; ValueType: string; ValueName: "ThreadingModel"; ValueData: "Both"
+Root: HKLM; Subkey: "Software\Classes\CLSID\{{61D23633-CE59-4101-8158-569FC6B51B49}"; ValueType: string; ValueName: ""; ValueData: "eSpeak NG TTS Engine"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\CLSID\{{61D23633-CE59-4101-8158-569FC6B51B49}\InprocServer32"; ValueType: string; ValueName: ""; ValueData: "{app}\libespeak-ng.dll"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\CLSID\{{61D23633-CE59-4101-8158-569FC6B51B49}\InprocServer32"; ValueType: string; ValueName: "ThreadingModel"; ValueData: "Both"
 
 [Icons]
 Name: "{group}\eSpeak NG Command Prompt"; Filename: "{cmd}"; Parameters: "/K """"{app}\espeak-ng.exe"" --help"""
