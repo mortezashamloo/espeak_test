@@ -90,10 +90,15 @@ and detect the available audio setup to use automatically.
 
 ### Windows Installers
 
-The GitHub Actions workflow in `.github/workflows/build-windows.yml` builds two
+The GitHub Actions workflow in `../.github/workflows/build-windows.yml` builds two
 separate Windows installers: the existing x64 command-line installer and an
 x86 installer that includes the SAPI5 engine. Both are published as workflow
 artifacts after a successful run.
+
+The separate `../.github/workflows/build-latest-espeak-ng-sapi5.yml` workflow
+resolves the latest stable release of `espeak-ng/espeak-ng` at run time, builds
+its x86 Windows engine and voice data with SAPI5 support, and publishes one
+versioned Setup.exe artifact. It runs weekly and can also be started manually.
 
 ### Audio Output Configuration
 

@@ -16,7 +16,9 @@
 
 #define RV1 "Software\\Microsoft\\Speech\\Voices\\Tokens\\eSpeak"
 #define RPC "Software\\Microsoft\\Speech\\PhoneConverters\\Tokens"
+#ifndef CLSID_ENGINE
 #define CLSID_ENGINE "{BE985C8D-BE32-4A22-AA93-55C16A6D1D91}"
+#endif
 
 static REGSAM g_view = 0;
 
