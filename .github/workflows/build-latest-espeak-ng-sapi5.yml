@@ -2,6 +2,9 @@ name: Build latest eSpeak NG SAPI5 installer
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - mortezashamloo-latest-espeak-ng-sapi5
   schedule:
     - cron: "0 6 * * 1"
 
@@ -156,7 +159,8 @@ jobs:
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "espeak-ng-sapi-stage"
           $output = Join-Path $env:GITHUB_WORKSPACE "dist"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DSourceDir=$stage" "/DOutputDir=$output" "/DProductVersion=$env:PRODUCT_VERSION" "/DArchitecture=`"$env:ARCHITECTURE`"" "packaging\windows\espeak-ng-sapi.iss"
+          $script = "packaging\windows\espeak-ng-sapi-$env:ARCHITECTURE.iss"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DSourceDir=$stage" "/DOutputDir=$output" "/DProductVersion=$env:PRODUCT_VERSION" $script
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup failed with exit code $LASTEXITCODE"
           }
