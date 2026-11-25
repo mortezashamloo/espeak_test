@@ -25,7 +25,7 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, mortezashamloo-fix-android-build ]
     paths:
       - '.github/workflows/build-android.yml'
 
