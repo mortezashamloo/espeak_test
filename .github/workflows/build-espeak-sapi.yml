@@ -74,7 +74,7 @@ jobs:
         run: |
           targets=$(grep -o '^espeak-data/[A-Za-z0-9_-]*_dict:' Makefile.am | tr -d ':' | sort -u)
           echo "$targets" | wc -l
-          make -j"$(nproc)" $targets
+          make -j1 $targets
           test -s espeak-data/fa_dict
           test -s espeak-data/en_dict
 
