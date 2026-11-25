@@ -148,6 +148,10 @@ jobs:
           # The upstream stub shadows MSVC's complete stdint.h for standard headers.
           Remove-Item "$sapi/src/stdint.h"
 
+          $stdafx = Get-Content "$sapi/StdAfx.cpp" -Raw
+          $stdafx = $stdafx -replace '(?m)^\s*#include <atlimpl\.cpp>\r?\n?', ''
+          Set-Content -Path "$sapi/StdAfx.cpp" -Value $stdafx -Encoding ascii
+
           Push-Location $sapi
           New-Item -ItemType Directory -Force build | Out-Null
 
