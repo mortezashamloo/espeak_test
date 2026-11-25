@@ -81,7 +81,7 @@ jobs:
       - name: Set up Android SDK (platform 34, build-tools 34.0.0, NDK r25b)
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34, build-tools;34.0.0, ndk;25.2.9519653'
+          packages: 'platforms;android-34 build-tools;34.0.0 ndk;25.2.9519653'
 
       - name: Show installed tool versions
         run: |
