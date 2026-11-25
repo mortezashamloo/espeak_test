@@ -1,0 +1,268 @@
+name: Build eSpeak SAPI5 installer
+
+# Put this file in your repo at .github/workflows/build-espeak-sapi.yml
+# Optional files in your own repo (all inside a folder named "extra"):
+#   extra/TTSApp.exe         -> shipped in the installer (it is not part of the source)
+#   extra/command_line/*     -> espeak.exe etc. for the command_line folder
+#   extra/ChangeLog.txt      -> shown in the installer
+#   extra/Languages/*.isl    -> your own Inno Setup language files (they win over downloaded ones)
+
+on:
+  push:
+    branches:
+      - mortezashamloo-upload-espeak-sapi-workflow
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'espeak-ng repo tag or commit to build'
+        default: '1.48.15'
+      version:
+        description: 'Version text shown in the installer'
+        default: '1.48.15'
+
+jobs:
+  data:
+    # Builds the phoneme data and all dictionaries (the "espeak-data" folder)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: espeak-ng/espeak-ng
+          ref: ${{ inputs.ref || '1.48.15' }}
+          path: espeak
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make autoconf automake libtool pkg-config python3 libwxgtk3.2-dev xvfb xauth
+
+      - name: Patch espeakedit for wxWidgets 3.x
+        working-directory: espeak
+        run: |
+          # In the old code "p = argv[1]" points to a temporary wxString, so the
+          # --compile option was never recognised with modern wxWidgets.
+          python3 - <<'EOF'
+          p = 'src/espeakedit.cpp'
+          s = open(p, encoding='utf-8', errors='surrogateescape').read()
+          old = "\tp = argv[1];\n"
+          assert old in s, 'pattern not found'
+          s = s.replace(old, "\tstatic wxString arg1_holder;\n\targ1_holder = argv[1];\n\tp = arg1_holder.c_str();\n", 1)
+          open(p, 'w', encoding='utf-8', errors='surrogateescape').write(s)
+          EOF
+
+      - name: Build speak, espeak and espeakedit
+        working-directory: espeak
+        run: |
+          ./autogen.sh
+          ./configure --without-pulseaudio --without-portaudio \
+            CXXFLAGS="-O1 -std=gnu++11 -fpermissive -Wno-narrowing -w"
+          make -j"$(nproc)" src/speak src/espeak src/espeakedit
+
+      - name: Compile phoneme data
+        working-directory: espeak
+        run: |
+          # The first message "Can't read data file ... intonations" is normal.
+          ESPEAK_DATA_PATH="$PWD" xvfb-run -a src/espeakedit --compile || true
+          test -s espeak-data/phondata
+          test -s espeak-data/phontab
+          test -s espeak-data/phonindex
+          test -s espeak-data/intonations
+          touch phsource/phonemes.stamp
+
+      - name: Compile all dictionaries
+        working-directory: espeak
+        run: |
+          targets=$(grep -o '^espeak-data/[A-Za-z0-9_-]*_dict:' Makefile.am | tr -d ':' | sort -u)
+          echo "$targets" | wc -l
+          make -j"$(nproc)" $targets
+          test -s espeak-data/fa_dict
+          test -s espeak-data/en_dict
+
+      - name: Quick test (Persian and English)
+        working-directory: espeak
+        run: |
+          ESPEAK_DATA_PATH="$PWD" src/speak -v fa -q -x "Ø³Ù„Ø§Ù…"
+          ESPEAK_DATA_PATH="$PWD" src/speak -v en -q -x "hello world"
+
+      - name: Pack espeak-data
+        working-directory: espeak
+        run: tar czf ../espeak-data.tar.gz espeak-data
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: espeak-data
+          path: espeak-data.tar.gz
+
+  sapi:
+    # Builds espeak_sapi.dll (32-bit) and the Inno Setup installer
+    needs: data
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: espeak-ng/espeak-ng
+          ref: ${{ inputs.ref || '1.48.15' }}
+          path: espeak
+
+      - uses: actions/checkout@v4
+        with:
+          path: own
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: espeak-data
+
+      - name: Unpack espeak-data
+        shell: pwsh
+        run: tar xzf espeak-data.tar.gz
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Check required headers
+        shell: pwsh
+        run: |
+          $dirs = $env:INCLUDE -split ';' | Where-Object { $_ }
+          foreach ($h in 'atlbase.h', 'atlcom.h', 'sapi.h', 'sapiddk.h', 'spddkhlp.h', 'spcollec.h') {
+            $found = $dirs | ForEach-Object { Join-Path $_ $h } | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if ($found) { Write-Host "OK      $h -> $found" } else { Write-Host "MISSING $h" }
+          }
+          $need = 'atlbase.h', 'spddkhlp.h'
+          foreach ($h in $need) {
+            $found = $dirs | ForEach-Object { Join-Path $_ $h } | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $found) { throw "$h is not available on this runner, the SAPI project cannot be built." }
+          }
+
+      - name: Build espeak_sapi.dll
+        shell: pwsh
+        run: |
+          $sapi = "$PWD/espeak/platforms/windows/windows_sapi"
+
+          # 1) copy the program sources, except the three Windows-specific headers
+          $skip = 'speech.h', 'StdAfx.h', 'stdint.h'
+          Get-ChildItem espeak/src -File |
+            Where-Object { $_.Extension -in '.cpp', '.h' -and $skip -notcontains $_.Name } |
+            ForEach-Object { Copy-Item $_.FullName "$sapi/src/" -Force }
+
+          Push-Location $sapi
+          New-Item -ItemType Directory -Force build | Out-Null
+
+          # 2) the list of sources comes from the project file itself
+          $dsp = Get-Content ttseng.dsp -Raw
+          $cpps = [regex]::Matches($dsp, 'SOURCE=\.\\(src\\\w+\.cpp)') |
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $cpps += 'StdAfx.cpp', 'TtsEng.cpp', 'TtsEngObj.cpp'
+          Write-Host "Sources:`n$($cpps -join "`n")"
+
+          $flags = @('/nologo', '/c', '/MT', '/O1', '/EHsc', '/W1', '/I.', '/Isrc',
+            '/DWIN32', '/D_WINDOWS', '/D_MBCS', '/D_USRDLL', '/D_ATL_STATIC_REGISTRY', '/DNDEBUG',
+            '/D_WIN32_WINNT=0x0601', '/DWINVER=0x0601',
+            '/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_NONSTDC_NO_WARNINGS', '/Fo.\build\')
+
+          cl @flags $cpps
+          if ($LASTEXITCODE -ne 0) { throw 'C++ compile failed' }
+
+          cl @flags /TC TtsEng_i.c
+          if ($LASTEXITCODE -ne 0) { throw 'C compile failed' }
+
+          rc /nologo /l 0x409 /d NDEBUG /fo build\TtsEng.res TtsEng.rc
+          if ($LASTEXITCODE -ne 0) { throw 'Resource compile failed' }
+
+          $objs = (Get-ChildItem build -Filter *.obj).FullName
+          link /nologo /DLL /MACHINE:X86 /SUBSYSTEM:WINDOWS /DEF:TtsEng.def `
+            /OUT:build\espeak_sapi.dll @objs build\TtsEng.res `
+            kernel32.lib user32.lib advapi32.lib ole32.lib oleaut32.lib uuid.lib winmm.lib sapi.lib
+          if ($LASTEXITCODE -ne 0) { throw 'Link failed' }
+          Pop-Location
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Prepare installer folder and script
+        shell: pwsh
+        run: |
+          $stage = "$PWD/stage"
+          New-Item -ItemType Directory -Force "$stage/Languages" | Out-Null
+
+          # files that go into the installer
+          Copy-Item espeak/platforms/windows/windows_sapi/build/espeak_sapi.dll $stage
+          Copy-Item -Recurse espeak-data "$stage/espeak-data"
+          Copy-Item -Recurse espeak/dictsource "$stage/dictsource"
+          Copy-Item -Recurse espeak/docs "$stage/docs"
+          Copy-Item espeak/platforms/windows/Readme.txt $stage
+          Copy-Item espeak/COPYING "$stage/License.txt"
+
+          # optional extras from your own repo
+          if (Test-Path own/extra/TTSApp.exe)     { Copy-Item own/extra/TTSApp.exe $stage }
+          if (Test-Path own/extra/command_line)   { Copy-Item -Recurse own/extra/command_line "$stage/command_line" }
+          if (Test-Path own/extra/ChangeLog.txt)  { Copy-Item own/extra/ChangeLog.txt $stage }
+          if (Test-Path own/extra/Languages)      { Copy-Item own/extra/Languages/* "$stage/Languages" -Force }
+
+          $inno = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          $iss = Get-Content espeak/platforms/windows/make_espeak.iss -Raw
+          $lines = $iss -split "\r?\n"
+          $out = New-Object System.Collections.Generic.List[string]
+          $removedLangs = @()
+
+          function Resolve-Isl([string]$file) {
+            if (Test-Path "$inno\Languages\$file") { return "compiler:Languages\$file" }
+            $base = [IO.Path]::GetFileNameWithoutExtension($file) -replace '-\d.*$', ''
+            $cands = @($file, "$base.isl", "$base.islu")
+            if ($base -eq 'Serbian') { $cands += 'SerbianLatin.isl' }
+            foreach ($c in $cands) {
+              if (Test-Path "$stage/Languages/$c") { return "Languages\$c" }
+            }
+            foreach ($c in $cands) {
+              try {
+                Invoke-WebRequest "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/$c" `
+                  -OutFile "$stage/Languages/$c" -ErrorAction Stop
+                return "Languages\$c"
+              } catch { }
+            }
+            return $null
+          }
+
+          foreach ($l in $lines) {
+            if ($l -match '^Name:\s*"(\w+)";\s*MessagesFile:\s*"compiler:Languages\\(.+)"') {
+              $code = $Matches[1]; $file = $Matches[2]
+              $path = Resolve-Isl $file
+              if ($path) {
+                $out.Add(('Name: "{0}"; MessagesFile: "{1}"' -f $code, $path))
+              } else {
+                $removedLangs += $code
+                Write-Host "Language removed (no .isl file found): $code ($file)"
+              }
+              continue
+            }
+            if ($l -match 'TTSApp' -and -not (Test-Path "$stage/TTSApp.exe")) { continue }
+            if ($l -match '^Source:\s*"command_line' -and -not (Test-Path "$stage/command_line")) { continue }
+            if ($l -match '^Source:\s*"ChangeLog.txt"' -and -not (Test-Path "$stage/ChangeLog.txt")) { continue }
+            $out.Add($l)
+          }
+
+          # custom messages of removed languages would be an error
+          $final = $out | Where-Object {
+            $keep = $true
+            foreach ($c in $removedLangs) { if ($_ -match "^$c\.v\d=") { $keep = $false } }
+            $keep
+          }
+
+          $text = ($final -join "`r`n") -replace 'eSpeak version [\d\.]+', "eSpeak version ${{ inputs.version || '1.48.15' }}"
+          Set-Content -Path "$stage/make_espeak.iss" -Value $text -Encoding utf8BOM
+          Write-Host "Languages kept:"
+          Select-String -Path "$stage/make_espeak.iss" -Pattern '^Name: "\w+"; MessagesFile' | ForEach-Object { $_.Line }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" stage\make_espeak.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: espeak-${{ inputs.version || '1.48.15' }}-sapi5
+          path: |
+            stage/Output/setup_espeak.exe
+            stage/espeak_sapi.dll
