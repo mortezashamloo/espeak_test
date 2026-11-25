@@ -171,9 +171,6 @@ jobs:
           cl @flags $cpps
           if ($LASTEXITCODE -ne 0) { throw 'C++ compile failed' }
 
-          cl @flags /TC TtsEng_i.c
-          if ($LASTEXITCODE -ne 0) { throw 'C compile failed' }
-
           rc /nologo /l 0x409 /d NDEBUG /fo build\TtsEng.res TtsEng.rc
           if ($LASTEXITCODE -ne 0) { throw 'Resource compile failed' }
 
