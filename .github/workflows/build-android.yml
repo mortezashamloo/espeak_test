@@ -299,6 +299,7 @@ jobs:
           set -e
           cd espeak-ng-src
           export PATH="$ANDROID_HOME/ndk/25.2.9519653:$PATH"
+          export CXXFLAGS="-std=gnu++98"
           ./autogen.sh
           ./configure \
             --with-gradle="$(command -v gradle)" \
