@@ -8,8 +8,8 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 #      tag `android/1.48.15` (the "eSpeak for Android 1.48.15" release tag,
 #      tagged 2015-10-14 by Reece H. Dunn).
 #   2. Clones the `ucd-tools` submodule that android/jni/Android.mk needs.
-#   3. Modernizes two legacy build files so the project builds with current
-#      tooling on GitHub Actions:
+#   3. Applies compatibility updates so the project builds with current
+#      Android tooling on GitHub Actions:
 #        - android/build.gradle       (was Android Gradle Plugin 1.2.3 from 2015,
 #                                      no longer installable; rewritten for AGP 8.1)
 #        - android/jni/Application.mk (was GCC 4.6.3 + mips + armeabi + android-8;
@@ -115,6 +115,11 @@ jobs:
           }
 
           apply plugin: 'com.android.application'
+
+          repositories {
+              google()
+              mavenCentral()
+          }
 
           android {
               namespace 'com.reecedunn.espeak'
