@@ -17,13 +17,14 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 #        - android/AndroidManifest.xml (adds explicit exported values required by Android 12+)
 #        - android/jni/Android.mk (routes the C++ standard flag only to C++ files)
 #        - android/jni/jni/eSpeakService.cpp (includes the standard declarations it uses)
+#        - src/tr_languages.cpp (expresses a UTF-8 byte sequence portably)
 #   4. Generates the voice-data resources required by the Android app.
 #   5. Produces a debug APK signed with the standard Android debug key, so it
 #      can be sideloaded directly on a phone with "Install unknown apps" enabled.
 #
-# Upstream eSpeak C/C++ sources, Java app code and resources remain unchanged.
-# JNI compatibility edits are limited to its build flags and missing header;
-# the manifest preserves pre-Android-12 exported behavior.
+# Apart from the one portable UTF-8 literal and the listed Android compatibility
+# changes, upstream eSpeak sources, Java app code and resources remain unchanged.
+# Manifest exported values preserve pre-Android-12 behavior.
 # ---------------------------------------------------------------------------
 
 on:
@@ -265,6 +266,22 @@ jobs:
               text = text.replace(anchor, anchor + header + "\n")
               path.write_text(text)
           PY
+
+      - name: Make the UTF-8 ordinal literal portable in C++11
+        run: |
+              set -e
+              cd espeak-ng-src
+              python3 - <<'PY'
+              from pathlib import Path
+
+              path = Path("src/tr_languages.cpp")
+              text = path.read_text()
+              old = "const char string_ordinal[] = {0xc2,0xba,0};"
+              new = r'const char string_ordinal[] = "\xc2\xba";'
+              if text.count(old) != 1:
+                  raise SystemExit(f"Expected exactly one {old!r} in {path}")
+              path.write_text(text.replace(old, new))
+              PY
 
       - name: Add gradle.properties (disable AndroidX — this project uses framework themes only)
         run: |
