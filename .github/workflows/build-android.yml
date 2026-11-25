@@ -17,7 +17,8 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 #        - android/AndroidManifest.xml (adds explicit exported values required by Android 12+)
 #        - android/jni/Android.mk (routes the C++ standard flag only to C++ files)
 #        - android/jni/jni/eSpeakService.cpp (includes the standard declarations it uses)
-#   4. Produces a debug APK signed with the standard Android debug key, so it
+#   4. Generates the voice-data resources required by the Android app.
+#   5. Produces a debug APK signed with the standard Android debug key, so it
 #      can be sideloaded directly on a phone with "Install unknown apps" enabled.
 #
 # Upstream eSpeak C/C++ sources, Java app code and resources remain unchanged.
@@ -85,6 +86,19 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;25.2.9519653'
+
+      - name: Install host tools for eSpeak voice-data generation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            libtool \
+            libtool-bin \
+            libwxgtk3.2-dev \
+            pkg-config \
+            zip
 
       - name: Show installed tool versions
         run: |
@@ -279,6 +293,23 @@ jobs:
           ls -la gradle/wrapper/
           cat gradle/wrapper/gradle-wrapper.properties
           echo "::endgroup::"
+
+      - name: Generate Android voice-data resources
+        run: |
+          set -e
+          cd espeak-ng-src
+          export PATH="$ANDROID_HOME/ndk/25.2.9519653:$PATH"
+          ./autogen.sh
+          ./configure \
+            --with-gradle="$(command -v gradle)" \
+            --with-pulseaudio=no \
+            --with-portaudio=no \
+            --with-mbrola=no \
+            --with-sonic=no \
+            --with-async=no
+          make espeakdata
+          test -s android/res/raw/espeakdata.zip
+          test -s android/res/raw/espeakdata_version
 
       - name: Build debug APK
         working-directory: espeak-ng-src/android
