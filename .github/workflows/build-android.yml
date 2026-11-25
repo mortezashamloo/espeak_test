@@ -98,6 +98,7 @@ jobs:
             libtool-bin \
             libwxgtk3.2-dev \
             pkg-config \
+            xvfb \
             zip
 
       - name: Show installed tool versions
@@ -309,7 +310,7 @@ jobs:
             --with-mbrola=no \
             --with-sonic=no \
             --with-async=no
-          make espeakdata
+          xvfb-run -a make espeakdata
           test -s android/res/raw/espeakdata.zip
           test -s android/res/raw/espeakdata_version
 
