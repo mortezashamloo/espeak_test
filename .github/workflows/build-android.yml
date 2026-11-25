@@ -14,12 +14,14 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 #                                      no longer installable; rewritten for AGP 8.1)
 #        - android/jni/Application.mk (was GCC 4.6.3 + mips + armeabi + android-8;
 #                                      rewritten for Clang + modern ABIs + android-21)
+#        - android/AndroidManifest.xml (adds explicit exported values required by Android 12+)
 #   4. Produces a debug APK signed with the standard Android debug key, so it
 #      can be sideloaded directly on a phone with "Install unknown apps" enabled.
 #
 # The espeak C/C++ source itself, the Java app code, the JNI glue, the
-# AndroidManifest.xml, the resources and the Android.mk are taken VERBATIM
-# from the upstream tag — they are NOT modified.
+# resources and the Android.mk are taken VERBATIM from the upstream tag.
+# The manifest is only updated with exported=true for components that have
+# intent filters, preserving their pre-Android-12 exported behavior.
 # ---------------------------------------------------------------------------
 
 on:
@@ -181,6 +183,33 @@ jobs:
           echo "::group::Old vs new Application.mk"
           diff -u jni/Application.mk.orig jni/Application.mk || true
           echo "::endgroup::"
+
+      - name: Add Android 12 exported declarations to the manifest
+        run: |
+          set -e
+          cd espeak-ng-src/android
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          namespace = "http://schemas.android.com/apk/res/android"
+          ET.register_namespace("android", namespace)
+          tree = ET.parse("AndroidManifest.xml")
+          exported = f"{{{namespace}}}exported"
+          components = [
+              element
+              for element in tree.getroot().iter()
+              if element.tag in {"activity", "service"}
+              and element.find("intent-filter") is not None
+          ]
+          if not components:
+              raise SystemExit("No activities or services with intent filters found")
+
+          for component in components:
+              component.set(exported, component.get(exported, "true"))
+              print(f"{component.get(f'{{{namespace}}}name')}: android:exported={component.get(exported)}")
+
+          tree.write("AndroidManifest.xml", encoding="utf-8", xml_declaration=True)
+          PY
 
       - name: Add gradle.properties (disable AndroidX — this project uses framework themes only)
         run: |
