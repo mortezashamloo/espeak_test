@@ -145,6 +145,9 @@ jobs:
             Where-Object { $_.Extension -in '.cpp', '.h' -and $skip -notcontains $_.Name } |
             ForEach-Object { Copy-Item $_.FullName "$sapi/src/" -Force }
 
+          # The upstream stub shadows MSVC's complete stdint.h for standard headers.
+          Remove-Item "$sapi/src/stdint.h"
+
           Push-Location $sapi
           New-Item -ItemType Directory -Force build | Out-Null
 
