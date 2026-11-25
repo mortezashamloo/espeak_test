@@ -16,12 +16,13 @@ name: Build eSpeak Android APK (from upstream android/1.48.15 tag)
 #                                      rewritten for Clang + modern ABIs + android-21)
 #        - android/AndroidManifest.xml (adds explicit exported values required by Android 12+)
 #        - android/jni/Android.mk (routes the C++ standard flag only to C++ files)
+#        - android/jni/jni/eSpeakService.cpp (includes the standard declarations it uses)
 #   4. Produces a debug APK signed with the standard Android debug key, so it
 #      can be sideloaded directly on a phone with "Install unknown apps" enabled.
 #
-# The eSpeak C/C++ source itself, Java app code, JNI glue and resources are
-# taken VERBATIM from the upstream tag. The manifest only gains exported=true
-# for components with intent filters, preserving pre-Android-12 behavior.
+# Upstream eSpeak C/C++ sources, Java app code and resources remain unchanged.
+# JNI compatibility edits are limited to its build flags and missing header;
+# the manifest preserves pre-Android-12 exported behavior.
 # ---------------------------------------------------------------------------
 
 on:
@@ -230,6 +231,24 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit(f"Expected exactly one {old!r} in {path}")
           path.write_text(text.replace(old, new))
+          PY
+
+      - name: Include standard declarations used by the JNI service
+        run: |
+          set -e
+          cd espeak-ng-src/android
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("jni/jni/eSpeakService.cpp")
+          text = path.read_text()
+          header = "#include <string.h>"
+          if header not in text:
+              anchor = "#include <stdlib.h>\n"
+              if text.count(anchor) != 1:
+                  raise SystemExit(f"Expected exactly one {anchor.strip()!r} in {path}")
+              text = text.replace(anchor, anchor + header + "\n")
+              path.write_text(text)
           PY
 
       - name: Add gradle.properties (disable AndroidX — this project uses framework themes only)
