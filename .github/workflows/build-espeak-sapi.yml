@@ -159,9 +159,10 @@ jobs:
           Write-Host "Sources:`n$($cpps -join "`n")"
 
           $flags = @('/nologo', '/c', '/MT', '/O1', '/EHsc', '/W1', '/I.', '/Isrc',
-            '/DWIN32', '/D_WINDOWS', '/D_MBCS', '/D_USRDLL', '/D_ATL_STATIC_REGISTRY', '/DNDEBUG',
+            '/DWIN32', '/D_WINDOWS', '/D_MBCS', '/D_USRDLL', '/DNDEBUG',
             '/D_WIN32_WINNT=0x0601', '/DWINVER=0x0601',
-            '/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_NONSTDC_NO_WARNINGS', '/Fo.\build\')
+            '/D_CRT_SECURE_NO_WARNINGS', '/D_CRT_NONSTDC_NO_WARNINGS',
+            '/D_export=', '/DSPDBG_FUNC=__noop', '/Fo.\build\')
 
           cl @flags $cpps
           if ($LASTEXITCODE -ne 0) { throw 'C++ compile failed' }
